@@ -14,7 +14,7 @@ Comprehensive data analytics project covering real-world Android app market inte
 | **Day 2** | **Tue, Oct 6** | **Task 4: Category, Ratings & Size Market Analysis** | • App distribution bar chart (saturated vs niche sectors)<br>• Rating distribution analysis (KDE, box plots, category mean/median)<br>• Scatter plot of app size vs. installs with logarithmic scaling<br>• Pearson ($r$) and Spearman ($\rho$) correlation analysis<br>• Stratified correlation across 33 categories<br>• Modular script, pytest suite, and executed Jupyter notebook | ✅ **Completed & Committed** |
 | **Day 3** | **Wed, Oct 7** | **Task 4: Pricing, Sentiment & Interactive Plotly Dashboard** | • Paid vs free app distribution & price curves<br>• Category revenue estimation (`Price * Installs`)<br>• Sentiment analysis using VADER & TextBlob<br>• Sentiment distribution by category<br>• Interactive Plotly bubble chart dashboard<br>• 3 strategic developer launch recommendations | ✅ **Completed & Verified** |
 | **Day 4** | **Thu, Oct 8** | **Task 5: NLP Corpus Ingestion & Autocomplete Engine** | • Text corpus acquisition & preprocessing pipeline<br>• N-gram frequency language models (bigrams/trigrams)<br>• Top-3 word predictions across $\ge 10$ prompt prefixes<br>• Precision and recall metrics calculation<br>• Top 20 vocabulary frequency visualization | ✅ **Completed & Verified** |
-| **Day 5** | **Fri, Oct 9** | **Task 5: Autocorrect Implementation, Comparison & Metrics** | • Edit-distance autocorrect (Levenshtein + pyspellchecker)<br>• Deliberately misspelled test suite ($\ge 20$ words)<br>• Precision, recall, and accuracy evaluation<br>• Confusion matrix visualization<br>• Comparative evaluation vs production systems (Gboard) | ⏳ Pending Day 5 Execution |
+| **Day 5** | **Fri, Oct 9** | **Task 5: Autocorrect Implementation, Comparison & Metrics** | • Edit-distance autocorrect (Levenshtein + pyspellchecker)<br>• Deliberately misspelled test suite ($\ge 20$ words)<br>• Precision, recall, and accuracy evaluation<br>• Confusion matrix visualization<br>• Comparative evaluation vs production systems (Gboard) | ✅ **Completed & Verified** |
 
 ---
 
@@ -277,6 +277,135 @@ $$\text{Top-1 Accuracy} = \frac{1}{|D_{\text{test}}|} \sum \mathbb{I}(y = \hat{w
 
 ---
 
+## 🚀 Day 5 Milestones & Deliverables (Autocorrect Implementation, Comparison & Metrics)
+
+### 1. Algorithmic Formulations: Levenshtein vs. Damerau-Levenshtein Distance
+In mobile typing environments, human keystroke errors follow physical keyboard layout and muscle memory patterns. We developed dynamic programming matrix engines for two fundamental string distance metrics:
+
+- **Classical Levenshtein Distance ($O(|s_1| \cdot |s_2|)$)**:
+  Permits three canonical unit-cost edit operations (Insertion, Deletion, and Substitution):
+  $$\mathcal{D}_{\text{Lev}}(i, j) = \min \begin{cases} \mathcal{D}(i-1, j) + 1 & \text{(Deletion)} \\ \mathcal{D}(i, j-1) + 1 & \text{(Insertion)} \\ \mathcal{D}(i-1, j-1) + \mathbb{I}(s_1[i] \neq s_2[j]) & \text{(Substitution)} \end{cases}$$
+
+- **Damerau-Levenshtein Distance with Adjacent Transposition**:
+  Accounts for transposed adjacent letters ($ab \leftrightarrow ba$) as a **single operation** (cost = 1) rather than two independent edits:
+  $$\mathcal{D}_{\text{Dam}}(i, j) = \min \begin{cases} \mathcal{D}_{\text{Lev}}(i, j) \\ \mathcal{D}(i-2, j-2) + 1 & \text{if } i, j > 1 \text{ and } s_1[i] = s_2[j-1] \text{ and } s_1[i-1] = s_2[j] \end{cases}$$
+
+| Input Typo | Target Word | Typographical Mechanism | Classical Levenshtein | Damerau-Levenshtein | Distance Reduction |
+| :--- | :--- | :--- | :---: | :---: | :---: |
+| `"teh"` | `"the"` | Adjacent Transposition | **2** | **1** | **-50.0% (1 edit)** |
+| `"udpate"` | `"update"` | Adjacent Transposition | **2** | **1** | **-50.0% (1 edit)** |
+| `"amzaing"` | `"amazing"` | Adjacent Transposition | **2** | **1** | **-50.0% (1 edit)** |
+| `"amzing"` | `"amazing"` | Omission (Deletion) | 1 | 1 | Identical |
+| `"upddate"` | `"update"` | Key Bounce (Insertion) | 1 | 1 | Identical |
+| `"updste"` | `"update"` | Fat-Finger (Substitution) | 1 | 1 | Identical |
+
+---
+
+### 2. Bayesian Prior Weighting & Mobile Vocabulary Formulation
+Leveraging the **20,344 unique lexical types** extracted from the 29,692 Play Store reviews, the Bayesian Autocorrect Engine evaluates candidate words by computing the maximum a posteriori (MAP) estimate:
+
+$$\hat{w} = \arg\max_{w \in V} P(w \mid c) = \arg\max_{w \in V} P(c \mid w) \cdot P(w)$$
+
+Where:
+- **Prior Probability $P(w)$**: Derived from domain frequency with Add-1 Laplace smoothing:
+  $$P(w) = \frac{\text{Count}(w) + 1}{N + |V|}$$
+- **Error Model Likelihood $P(c \mid w)$**: Geometric distance penalty modeling typographical channel noise:
+  $$P(c \mid w) = (0.05)^{\mathcal{D}_{\text{Dam}}(c, w)}$$
+- **Domain Advantage**: The Play Store corpus natively incorporates mobile app terminology (`playstore`, `fps`, `lag`, `unplayable`, `wifi`, `in-app`) preventing false rejections common to static generic dictionaries.
+
+---
+
+### 3. Deliberately Misspelled Benchmark Test Suite ($n = 33$ Words)
+To rigorously evaluate autocorrect performance across all typographical failure modes, we assembled a 33-item benchmark corpus spanning 5 error categories plus clean controls:
+
+| Error Category | Sample Count | Representative Injected Typo | Target Word | Edit Distance | Typographical Etiology |
+| :--- | :---: | :--- | :--- | :---: | :--- |
+| **Insertion** | 6 | `amazzing`, `upddate`, `graphiics`, `unplayyable`, `downloadd`, `reviiew` | `amazing`, `update`, `graphics`, `unplayable`, `download`, `review` | 1 | Repeated touch key bounce |
+| **Deletion** | 6 | `amzing`, `grphics`, `updat`, `notifcation`, `connetion`, `downlod` | `amazing`, `graphics`, `update`, `notification`, `connection`, `download` | 1 | Fast typing character skip |
+| **Substitution** | 6 | `amazung`, `updste`, `battrry`, `grafics`, `unpkayable`, `gake` | `amazing`, `update`, `battery`, `graphics`, `unplayable`, `game` | 1 | QWERTY physical key adjacency |
+| **Transposition**| 6 | `amzaing`, `udpate`, `recieve`, `featrue`, `teh`, `palystore` | `amazing`, `update`, `receive`, `feature`, `the`, `playstore` | 1 (Dam) / 2 (Lev) | Asynchronous finger tap timing |
+| **Multi-Edit** | 4 | `graffix`, `amzingg`, `updaetd`, `conectionn` | `graphics`, `amazing`, `updated`, `connection` | 2 | Compound phonetic & multi-key error |
+| **Control (Clean)** | 5 | `game`, `update`, `screen`, `free`, `mobile` | `game`, `update`, `screen`, `free`, `mobile` | 0 | Baseline false positive check |
+
+---
+
+### 4. Empirical Benchmark Results & Evaluation Metrics
+
+We benchmarked 5 distinct autocorrect systems across the 33-word test suite:
+1. **Classical Levenshtein Engine**
+2. **Damerau-Levenshtein Engine**
+3. **Bayesian Frequency-Weighted Engine**
+4. **`pyspellchecker` Production Baseline**
+5. **Gboard Reference Engine (Simulated Production)**
+
+$$\text{Top-1 Acc} = \frac{TP + TN}{N}, \quad \text{Precision} = \frac{TP}{TP + FP}, \quad \text{Recall} = \frac{TP}{TP + FN}, \quad \text{MRR} = \frac{1}{N} \sum \frac{1}{\text{rank}}$$
+
+| Engine Architecture | Top-1 Accuracy (%) | Top-3 Recall / Hit Rate (%) | Precision (%) | Recall (%) | F1-Score (%) | Mean Reciprocal Rank (MRR) | Mean Latency per Word (ms) |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| **Classical Levenshtein** | 81.8% | 87.9% | **100.0%** | 78.6% | 88.0% | 0.8485 | 50.21 ms |
+| **Damerau-Levenshtein** | **87.9%** | **90.9%** | **100.0%** | **85.7%** | **92.3%** | **0.8939** | **15.87 ms** |
+| **Bayesian Frequency-Weighted** | **87.9%** | **90.9%** | **100.0%** | **85.7%** | **92.3%** | **0.8939** | **18.92 ms** |
+| **`pyspellchecker` (Baseline)** | 87.9% | 87.9% | **100.0%** | 85.7% | 92.3% | 0.8864 | 97.80 ms |
+| **Gboard Reference (Simulated)** | **87.9%** | **90.9%** | **100.0%** | **85.7%** | **92.3%** | **0.8939** | **13.87 ms** |
+
+#### Key Empirical Insights:
+1. **The Transposition Lift**: Damerau-Levenshtein achieves an immediate **+6.1% boost in Top-1 Accuracy** and **+7.1% boost in Recall** over Classical Levenshtein, directly resolving adjacent transposition errors (`teh` $\to$ `the`, `udpate` $\to$ `update`).
+2. **Zero False Positives (100% Precision)**: Across all 5 models, correct words (`game`, `update`, `screen`, `free`, `mobile`) remained 100% unmodified, verifying that the candidate generation filters never corrupt valid inputs.
+3. **Inference Latency Advantage**: Damerau-Levenshtein and Bayesian engines run in **~15–18 ms/word**, outperforming `pyspellchecker` (**97.8 ms/word**, **~5.5x faster**), while achieving higher Top-3 candidate recall (90.9% vs 87.9%).
+
+---
+
+### 5. Error-Type Stratification & Confusion Matrix Analysis
+
+Breaking down Top-1 accuracy by error category highlights where classical algorithms fail:
+
+| Error Category | Classical Levenshtein Acc (%) | Damerau-Levenshtein Acc (%) | Bayesian Frequency Acc (%) | `pyspellchecker` Acc (%) | Gboard Reference Acc (%) | Key Failure / Success Factor |
+| :--- | :---: | :---: | :---: | :---: | :---: | :--- |
+| **Deletion** | **100.0%** | **100.0%** | **100.0%** | **100.0%** | **100.0%** | Single omitted character easily matched |
+| **Insertion** | 83.3% | 83.3% | 83.3% | **100.0%** | 83.3% | Handled via distance-1 single-character strip |
+| **Substitution** | 83.3% | 83.3% | 83.3% | 66.7% | 83.3% | QWERTY adjacent replacements |
+| **Transposition**| 66.7% | **83.3%** | **83.3%** | **83.3%** | **83.3%** | Levenshtein penalizes as distance 2; Damerau solves in distance 1 |
+| **Multi-Edit (Dist 2)** | 50.0% | **75.0%** | **75.0%** | **75.0%** | **75.0%** | Combinatorial expansion handles 2-edit typos |
+| **Control (Clean)** | **100.0%** | **100.0%** | **100.0%** | **100.0%** | **100.0%** | Perfect retention; 0 false positive modifications |
+
+---
+
+### 6. Comparative Architectural Evaluation vs. Production Keyboards (Gboard)
+
+Modern commercial smartphone keyboards (Google Gboard, Apple iOS Keyboard) employ a multi-layered hybrid architecture that significantly surpasses pure edit-distance engines:
+
+```
+[Touch Screen Coordinates (x, y)]
+             │
+             ▼
+[Spatial Key Probability Model: P(Touch | Key) ~ Gaussian]
+             │
+             ▼
+[Lexical Prefix Trie / FST Candidate Decoding]
+             │
+             ▼
+[Context-Aware Neural Language Model: Transformer / LSTM Beam Search P(Word | Context)]
+             │
+             ▼
+[Personalized User Dictionary & Federated Learning Adaptation]
+             │
+             ▼
+[Top-3 Candidate Bar & Auto-Commit Decision]
+```
+
+1. **Continuous Spatial Touch Modeling vs. Discrete ASCII Distance**:
+   - *Classical Autocorrect*: Treats every letter substitution identically ($\text{cost} = 1$). Substituting `'a'` with `'s'` (physically adjacent on QWERTY) costs the same as substituting `'a'` with `'p'` (opposite side of keyboard).
+   - *Gboard*: Models fingertip touch points as continuous bivariate Gaussian distributions $(\mu, \Sigma)$ centered over key coordinates. Fat-finger touch slips receive high spatial likelihood $P(\text{touch} \mid \text{key})$, drastically pruning the candidate search tree.
+2. **Context-Aware Sequence Decoding**:
+   - *Classical Autocorrect*: Evaluates words in total isolation. Cannot differentiate `"see you there"` vs `"see you their"`.
+   - *Gboard*: Integrates bidirectional Transformer / recurrent neural language models with beam search, evaluating $P(w_i \mid w_{i-2}, w_{i-1})$.
+3. **Strict Sub-5ms Mobile Latency Budget**:
+   - Gboard processes keystrokes within **< 2ms** on edge mobile chips using quantized Finite State Transducers (FST) and compressed trie structures to prevent UI stutter within Android's 16ms (60 FPS) rendering budget.
+4. **Federated Learning & On-Device Personalization**:
+   - Gboard continuously adapts to user slang, contact names, and emojis via private on-device federated learning without transmitting keystrokes to remote servers.
+
+---
+
 ## 📁 Repository Structure
 
 ```
@@ -294,7 +423,8 @@ Google Playstore Analysis/
 │   ├── 01_playstore_data_cleaning.ipynb# Day 1: Interactive data cleaning notebook & audit
 │   ├── 02_playstore_category_ratings_size_analysis.ipynb # Day 2: Category, Ratings & Size EDA
 │   ├── 03_playstore_pricing_sentiment_dashboard.ipynb   # Day 3: Pricing, Sentiment & Plotly Dashboard
-│   └── 04_nlp_corpus_autocomplete_engine.ipynb          # Day 4: NLP Corpus, N-Gram & Autocomplete Notebook
+│   ├── 04_nlp_corpus_autocomplete_engine.ipynb          # Day 4: NLP Corpus, N-Gram & Autocomplete Notebook
+│   └── 05_nlp_autocorrect_benchmarks.ipynb              # Day 5: NLP Autocorrect, Edit Distance & Benchmarks
 ├── reports/
 │   ├── category_distribution_summary.csv   # Category market share data table (Day 2)
 │   ├── category_ratings_summary.csv        # Category ratings benchmarks table (Day 2)
@@ -306,6 +436,10 @@ Google Playstore Analysis/
 │   ├── vocabulary_frequency_summary.csv    # Corpus vocabulary frequencies & Zipf analysis (Day 4)
 │   ├── ngram_predictions_summary.csv       # Top-3 predictions across 12 mobile prompt prefixes (Day 4)
 │   ├── autocomplete_metrics_summary.csv    # Empirical evaluation metrics & perplexity across models (Day 4)
+│   ├── autocorrect_test_corpus.csv         # 33-item benchmark test suite with error categories (Day 5)
+│   ├── autocorrect_benchmark_summary.csv   # Precision, recall, accuracy, latency across 5 engines (Day 5)
+│   ├── autocorrect_confusion_matrix.csv    # Stratified error-type confusion matrix (Day 5)
+│   ├── autocorrect_word_predictions.csv    # Per-word predictions across all engines (Day 5)
 │   └── figures/
 │       ├── 01_category_distribution.png    # Saturated vs niche categories bar chart (Day 2)
 │       ├── 02_rating_distributions.png     # Rating KDE & top 20 category box plots (Day 2)
@@ -317,18 +451,22 @@ Google Playstore Analysis/
 │       ├── 08_market_bubble_dashboard.png  # Publication 2D strategic opportunity bubble chart (Day 3)
 │       ├── 08_market_opportunity_dashboard.html # Interactive Plotly bubble chart dashboard (Day 3)
 │       ├── 09_top20_vocabulary_frequency.png    # Top 20 vocabulary frequency & Zipf's law scaling (Day 4)
-│       └── 10_ngram_autocomplete_evaluation.png # Autocomplete predictions & evaluation metrics (Day 4)
+│       ├── 10_ngram_autocomplete_evaluation.png # Autocomplete predictions & evaluation metrics (Day 4)
+│       ├── 11_autocorrect_performance_metrics.png   # Autocorrect metrics & latency tradeoff (Day 5)
+│       └── 12_autocorrect_confusion_matrices.png    # Confusion matrix & Gboard capability radar (Day 5)
 ├── src/
 │   ├── __init__.py                     # Package definition
 │   ├── data_cleaning.py                # Day 1: Reusable data cleaning pipeline
 │   ├── category_ratings_analysis.py    # Day 2: Category, ratings & correlation engine
 │   ├── pricing_sentiment_analysis.py   # Day 3: Pricing, sentiment & dashboard engine
-│   └── nlp_autocomplete_engine.py      # Day 4: NLP corpus preprocessing & autocomplete engine
+│   ├── nlp_autocomplete_engine.py      # Day 4: NLP corpus preprocessing & autocomplete engine
+│   └── nlp_autocorrect_engine.py       # Day 5: NLP autocorrect, edit distance & benchmark engine
 └── tests/
     ├── test_cleaning.py                # Day 1: Data cleaning pytest suite (4 passed)
     ├── test_category_ratings.py        # Day 2: Category & ratings pytest suite (6 passed)
     ├── test_pricing_sentiment.py       # Day 3: Pricing & sentiment pytest suite (8 passed)
-    └── test_nlp_autocomplete.py        # Day 4: NLP autocomplete engine pytest suite (9 passed)
+    ├── test_nlp_autocomplete.py        # Day 4: NLP autocomplete engine pytest suite (9 passed)
+    └── test_nlp_autocorrect.py         # Day 5: NLP autocorrect engine pytest suite (9 passed)
 ```
 
 ---
@@ -353,11 +491,14 @@ python src/pricing_sentiment_analysis.py
 
 # Day 4 NLP Corpus Ingestion & Autocomplete Engine
 python src/nlp_autocomplete_engine.py
+
+# Day 5 NLP Autocorrect, Edit Distance & Benchmarking Pipeline
+python src/nlp_autocorrect_engine.py
 ```
 
 ### 3. Run Automated Pytest Test Suite
 ```bash
-# Execute entire test suite (27 passed across Day 1, Day 2, Day 3, and Day 4)
+# Execute entire test suite (36 passed across Day 1, Day 2, Day 3, Day 4, and Day 5)
 pytest tests/ -v
 ```
 
@@ -367,6 +508,8 @@ jupyter notebook notebooks/01_playstore_data_cleaning.ipynb
 jupyter notebook notebooks/02_playstore_category_ratings_size_analysis.ipynb
 jupyter notebook notebooks/03_playstore_pricing_sentiment_dashboard.ipynb
 jupyter notebook notebooks/04_nlp_corpus_autocomplete_engine.ipynb
+jupyter notebook notebooks/05_nlp_autocorrect_benchmarks.ipynb
 ```
+
 
 
