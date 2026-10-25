@@ -27,6 +27,7 @@ from src.nlp_autocorrect_engine import (
     BayesianFrequencyAutocorrectEngine
 )
 from src.master_pipeline import GooglePlaystoreMasterEngine
+from src.production_api import app, create_app
 
 __all__ = [
     "clean_playstore_apps",
@@ -44,5 +45,7 @@ __all__ = [
     "NorvigCandidateGenerator",
     "DamerauLevenshteinAutocorrectEngine",
     "BayesianFrequencyAutocorrectEngine",
-    "GooglePlaystoreMasterEngine"
+    "GooglePlaystoreMasterEngine",
+    "app",
+    "create_app"
 ]
