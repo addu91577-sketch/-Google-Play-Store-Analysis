@@ -28,6 +28,7 @@ from src.nlp_autocorrect_engine import (
 )
 from src.master_pipeline import GooglePlaystoreMasterEngine
 from src.production_api import app, create_app
+from src.delivery_showcase import ProjectDeliveryShowcase
 
 __all__ = [
     "clean_playstore_apps",
@@ -47,5 +48,6 @@ __all__ = [
     "BayesianFrequencyAutocorrectEngine",
     "GooglePlaystoreMasterEngine",
     "app",
-    "create_app"
+    "create_app",
+    "ProjectDeliveryShowcase"
 ]
